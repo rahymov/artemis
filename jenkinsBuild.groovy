@@ -44,7 +44,12 @@ def slavePodTemplate = """
     //         ])
     //         ])
 
+    def environment = ""
     def branch = "${scm.branches[0].name}".replaceAll(/^\*\//, '').replace("/", "-").toLowerCase()
+    
+    if(branch == master){
+      environment = "prod"
+    }
 
     podTemplate(name: k8slabel, label: k8slabel, yaml: slavePodTemplate, showRawYaml: false) {
       node(k8slabel) {
@@ -65,6 +70,15 @@ def slavePodTemplate = """
             stage("Docker Push") {
               sh "docker push rahymov/artemis:${branch.replace('version/', 'v')}"
             }
+
+            tage("Trigger Deploy") {
+              build job: 'artemis-deploy', 
+              parameters: [
+                [$class: 'BooleanParameterValue', name: 'terraformApply', value: true],
+                [$class: 'StringParameterValue',  name: 'environment', value: "${environment}"]
+                ]
+            }
+
           }
         }
       }
